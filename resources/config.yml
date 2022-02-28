@@ -1,0 +1,7 @@
+# Applies the dimension fix to worlds with the following names
+#
+# To not apply the fix to any worlds, use:
+# apply-to-worlds: []
+apply-to-worlds:
+  - "end"
+  - "nether"
