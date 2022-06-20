@@ -4,19 +4,21 @@ declare(strict_types=1);
 
 namespace muqsit\dimensionfix;
 
+use InvalidArgumentException;
 use pocketmine\event\EventPriority;
 use pocketmine\event\player\PlayerLoginEvent;
 use pocketmine\event\world\WorldLoadEvent;
 use pocketmine\network\mcpe\cache\ChunkCache;
 use pocketmine\network\mcpe\compression\Compressor;
 use pocketmine\network\mcpe\compression\ZlibCompressor;
+use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\plugin\PluginBase;
 use pocketmine\world\World;
 use ReflectionProperty;
 
 final class Loader extends PluginBase{
 
-	/** @var string[] */
+	/** @var array<string, DimensionIds::*> */
 	private array $applicable_worlds = [];
 
 	/** @var Compressor[] */
@@ -24,8 +26,13 @@ final class Loader extends PluginBase{
 
 	protected function onEnable() : void{
 		$this->saveDefaultConfig();
-		foreach($this->getConfig()->get("apply-to-worlds") as $world_folder_name){
-			$this->applyToWorld($world_folder_name);
+
+		foreach($this->getConfig()->get("apply-to-worlds") as $world_folder_name => $dimension_id){
+			$this->applyToWorld($world_folder_name, match($dimension_id){
+				"end" => DimensionIds::THE_END,
+				"nether" => DimensionIds::NETHER,
+				default => throw new InvalidArgumentException("Invalid dimension ID in configuration: {$dimension_id}")
+			});
 		}
 
 		$this->getServer()->getPluginManager()->registerEvent(PlayerLoginEvent::class, function(PlayerLoginEvent $event) : void{
@@ -54,15 +61,20 @@ final class Loader extends PluginBase{
 	}
 
 	private function registerHackToWorldIfApplicable(World $world) : bool{
-		if(!isset($this->applicable_worlds[$world->getFolderName()])){
+		if(!isset($this->applicable_worlds[$world_name = $world->getFolderName()])){
 			return false;
 		}
 
-		$this->registerHackToWorld($world);
+		$dimension_id = $this->applicable_worlds[$world_name];
+		$this->registerHackToWorld($world, $dimension_id);
 		return true;
 	}
 
-	private function registerHackToWorld(World $world) : void{
+	/**
+	 * @param World $world
+	 * @param DimensionIds::* $dimension_id
+	 */
+	private function registerHackToWorld(World $world, int $dimension_id) : void{
 		static $_chunk_cache_compressor = null;
 		if($_chunk_cache_compressor === null){
 			/** @see ChunkCache::$compressor */
@@ -74,13 +86,17 @@ final class Loader extends PluginBase{
 			$chunk_cache = ChunkCache::getInstance($world, $compressor);
 			$compressor = $_chunk_cache_compressor->getValue($chunk_cache);
 			if(!($compressor instanceof DimensionSpecificCompressor)){
-				$_chunk_cache_compressor->setValue($chunk_cache, new DimensionSpecificCompressor($compressor));
+				$_chunk_cache_compressor->setValue($chunk_cache, new DimensionSpecificCompressor($compressor, $dimension_id));
 			}
 		}
 	}
 
-	public function applyToWorld(string $world_folder_name) : void{
-		$this->applicable_worlds[$world_folder_name] = $world_folder_name;
+	/**
+	 * @param string $world_folder_name
+	 * @param DimensionIds::* $dimension_id
+	 */
+	public function applyToWorld(string $world_folder_name, int $dimension_id) : void{
+		$this->applicable_worlds[$world_folder_name] = $dimension_id;
 	}
 
 	public function unapplyFromWorld(string $world_folder_name) : void{

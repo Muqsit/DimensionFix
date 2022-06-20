@@ -2,6 +2,10 @@
 #
 # To not apply the fix to any worlds, use:
 # apply-to-worlds: []
+# Format:
+# apply-to-worlds:
+#   world_folder_name: dimension_type
+# The dimension_type must be one of: end, nether
 apply-to-worlds:
-  - "end"
-  - "nether"
+  end: end
+  nether: nether
