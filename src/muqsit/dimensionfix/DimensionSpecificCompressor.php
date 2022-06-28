@@ -14,15 +14,9 @@ use pocketmine\network\mcpe\protocol\serializer\PacketSerializer;
 use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\network\mcpe\serializer\ChunkSerializer;
-use pocketmine\utils\BinaryStream;
-use RuntimeException;
 use function assert;
-use function sleep;
-use function str_repeat;
-use function strlen;
 use function substr;
 use function substr_replace;
-use function var_dump;
 
 final class DimensionSpecificCompressor implements Compressor{
 

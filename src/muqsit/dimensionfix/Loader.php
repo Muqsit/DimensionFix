@@ -27,14 +27,6 @@ final class Loader extends PluginBase{
 	protected function onEnable() : void{
 		$this->saveDefaultConfig();
 
-		foreach($this->getConfig()->get("apply-to-worlds") as $world_folder_name => $dimension_id){
-			$this->applyToWorld($world_folder_name, match($dimension_id){
-				"end" => DimensionIds::THE_END,
-				"nether" => DimensionIds::NETHER,
-				default => throw new InvalidArgumentException("Invalid dimension ID in configuration: {$dimension_id}")
-			});
-		}
-
 		$this->getServer()->getPluginManager()->registerEvent(PlayerLoginEvent::class, function(PlayerLoginEvent $event) : void{
 			$this->registerKnownCompressor($event->getPlayer()->getNetworkSession()->getCompressor());
 		}, EventPriority::LOWEST, $this);
@@ -44,8 +36,13 @@ final class Loader extends PluginBase{
 
 		// register already-registered values
 		$this->registerKnownCompressor(ZlibCompressor::getInstance());
-		foreach($this->getServer()->getWorldManager()->getWorlds() as $world){
-			$this->registerHackToWorldIfApplicable($world);
+
+		foreach($this->getConfig()->get("apply-to-worlds") as $world_folder_name => $dimension_id){
+			$this->applyToWorld($world_folder_name, match($dimension_id){
+				"end" => DimensionIds::THE_END,
+				"nether" => DimensionIds::NETHER,
+				default => throw new InvalidArgumentException("Invalid dimension ID in configuration: {$dimension_id}")
+			});
 		}
 	}
 
@@ -97,6 +94,10 @@ final class Loader extends PluginBase{
 	 */
 	public function applyToWorld(string $world_folder_name, int $dimension_id) : void{
 		$this->applicable_worlds[$world_folder_name] = $dimension_id;
+		$world = $this->getServer()->getWorldManager()->getWorldByName($world_folder_name);
+		if($world !== null){
+			$this->registerHackToWorldIfApplicable($world);
+		}
 	}
 
 	public function unapplyFromWorld(string $world_folder_name) : void{
