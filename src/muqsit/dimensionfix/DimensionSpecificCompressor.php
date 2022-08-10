@@ -52,8 +52,7 @@ final class DimensionSpecificCompressor implements Compressor{
 				$packet->decode(PacketSerializer::decoder($buffer, 0, $context));
 				$payload_with_reduced_biomes = $this->reduceBiomePalettesInPayload($context, $packet->getSubChunkCount() - ChunkSerializer::LOWER_PADDING_SIZE, $packet->getExtraPayload(), $this->biome_palettes_to_reduce);
 				$payload = PacketBatch::fromPackets($context, LevelChunkPacket::create(
-					$packet->getChunkX(),
-					$packet->getChunkZ(),
+					$packet->getChunkPosition(),
 					$packet->getSubChunkCount() - ChunkSerializer::LOWER_PADDING_SIZE,
 					$packet->isClientSubChunkRequestEnabled(),
 					$packet->getUsedBlobHashes(),
