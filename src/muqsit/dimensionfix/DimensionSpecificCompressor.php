@@ -15,9 +15,9 @@ use pocketmine\network\mcpe\protocol\serializer\PacketSerializerContext;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\utils\BinaryStream;
 use pocketmine\world\format\Chunk;
+use pocketmine\world\format\PalettedBlockArray;
 use function array_key_first;
 use function array_key_last;
-use function array_slice;
 use function count;
 use function substr;
 
@@ -104,15 +104,13 @@ final class DimensionSpecificCompressor implements Compressor{
 	}
 
 	private function readSubChunk(PacketSerializer $stream) : void{
-		static $BITS_PER_BLOCK_TO_WORD_ARRAY_LENGTH = [0, 512, 1024, 1640, 2048, 2732, 3280];
-
 		$stream->getByte(); // version
 		$layers_c = $stream->getByte();
 		for($i = 0; $i < $layers_c; $i++){
 			$byte = $stream->getByte();
 			$bitsPerBlock = $byte >> 1;
 			$persistentBlockStates = ($byte & 1) === 0;
-			$stream->get($BITS_PER_BLOCK_TO_WORD_ARRAY_LENGTH[$bitsPerBlock]);
+			$stream->get(PalettedBlockArray::getExpectedWordArraySize($bitsPerBlock));
 			if($bitsPerBlock !== 0){
 				$palette_c = $stream->getUnsignedVarInt() >> 1;
 			}else{
