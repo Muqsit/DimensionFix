@@ -80,7 +80,7 @@ final class Loader extends PluginBase{
 			$chunk_cache = ChunkCache::getInstance($world, $compressor);
 			$compressor = $_chunk_cache_compressor->getValue($chunk_cache);
 			if(!($compressor instanceof DimensionSpecificCompressor)){
-				$_chunk_cache_compressor->setValue($chunk_cache, new DimensionSpecificCompressor($compressor, $dimension_id));
+				$_chunk_cache_compressor->setValue($chunk_cache, DimensionSpecificCompressor::fromDimensionId($compressor, $dimension_id));
 			}
 		}
 	}
