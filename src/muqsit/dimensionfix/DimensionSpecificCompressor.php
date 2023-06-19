@@ -52,7 +52,9 @@ final class DimensionSpecificCompressor implements Compressor{
 
 	public function compress(string $payload) : string{
 		$context = new PacketSerializerContext(TypeConverter::getInstance()->getItemTypeDictionary());
-		foreach((new PacketBatch($payload))->getPackets(PacketPool::getInstance(), $context, 1) as [$packet, $buffer]){
+		$pool = PacketPool::getInstance();
+		foreach(PacketBatch::decodeRaw(new BinaryStream($payload)) as $buffer){
+			$packet = $pool->getPacket($buffer);
 			if($packet instanceof LevelChunkPacket){
 				$packet->decode(PacketSerializer::decoder($buffer, 0, $context));
 				$packet = $this->modifyPacket($packet, $context);
@@ -74,11 +76,19 @@ final class DimensionSpecificCompressor implements Compressor{
 		$stream = PacketSerializer::decoder($packet->getExtraPayload(), 0, $context);
 
 		$sub_chunks = [];
-		for($i = Chunk::MIN_SUBCHUNK_INDEX, $max = $original_sub_chunk_count; $max-- > 0;  $i++){
+		for($i = Chunk::MIN_SUBCHUNK_INDEX, $max = $original_sub_chunk_count; $max-- > 0; $i++){
 			$begin = $stream->getOffset();
 			$this->readSubChunk($stream);
 			$end = $stream->getOffset();
 			$sub_chunks[$i] = [$begin, $end - 1];
+		}
+
+		$biomes = [];
+		for($i = Chunk::MIN_SUBCHUNK_INDEX; $i <= Chunk::MAX_SUBCHUNK_INDEX; $i++){
+			$begin = $stream->getOffset();
+			$this->readBiome($stream);
+			$end = $stream->getOffset();
+			$biomes[$i] = [$begin, $end - 1];
 		}
 
 		// set payload to contain only a slice of the chunks
@@ -90,8 +100,17 @@ final class DimensionSpecificCompressor implements Compressor{
 		$end = $resulting_chunks[array_key_last($resulting_chunks)][1];
 		$payload = substr($packet->getExtraPayload(), $begin, 1 + ($end - $begin));
 
-		// add remaining payload (containing biomes and tiles)
-		$end = $sub_chunks[array_key_last($sub_chunks)][1];
+		// set payload to contain only a slice of the biomes
+		$resulting_biomes = [];
+		for($i = $this->min_sub_chunk_index; $i <= $this->max_sub_chunk_index; $i++){
+			$resulting_biomes[] = $biomes[$i];
+		}
+		$begin = $resulting_biomes[array_key_first($resulting_biomes)][0];
+		$end = $resulting_biomes[array_key_last($resulting_biomes)][1];
+		$payload .= substr($packet->getExtraPayload(), $begin, 1 + ($end - $begin));
+
+		// add remaining payload (containing tiles)
+		$end = $biomes[array_key_last($biomes)][1];
 		$payload .= substr($packet->getExtraPayload(), $end + 1);
 
 		return LevelChunkPacket::create(
@@ -129,6 +148,21 @@ final class DimensionSpecificCompressor implements Compressor{
 					$stream->getUnsignedVarInt();
 				}
 			}
+		}
+	}
+
+	private function readBiome(PacketSerializer $stream) : void{
+		$biomePaletteBitsPerBlock = $stream->getByte() >> 1;
+		$stream->get(PalettedBlockArray::getExpectedWordArraySize($biomePaletteBitsPerBlock));
+
+		if($biomePaletteBitsPerBlock !== 0){
+			$palette_c = $stream->getUnsignedVarInt() >> 1;
+		}else{
+			$palette_c = 1;
+		}
+
+		for($i = 0; $i < $palette_c; $i++){
+			$stream->getUnsignedVarInt();
 		}
 	}
 }
