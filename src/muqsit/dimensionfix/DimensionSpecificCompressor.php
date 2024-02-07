@@ -30,20 +30,31 @@ final class DimensionSpecificCompressor implements Compressor{
 	 */
 	public static function fromDimensionId(Compressor $compressor, int $dimension_id) : Compressor{
 		return match($dimension_id){
-			DimensionIds::NETHER => new self($compressor, 0, 7),
-			DimensionIds::THE_END => new self($compressor, 0, 15),
+			DimensionIds::NETHER => new self($compressor, $dimension_id, 0, 7),
+			DimensionIds::THE_END => new self($compressor, $dimension_id, 0, 15),
 			default => $compressor
 		};
 	}
 
+	/**
+	 * @param Compressor $inner
+	 * @param DimensionIds::* $dimension_id
+	 * @param int $min_sub_chunk_index
+	 * @param int $max_sub_chunk_index
+	 */
 	public function __construct(
 		readonly private Compressor $inner,
+		readonly private int $dimension_id,
 		readonly private int $min_sub_chunk_index,
 		readonly private int $max_sub_chunk_index
 	){}
 
 	public function getCompressionThreshold() : ?int{
 		return $this->inner->getCompressionThreshold();
+	}
+
+	public function getNetworkId() : int{
+		return $this->inner->getNetworkId();
 	}
 
 	public function decompress(string $payload) : string{
@@ -115,6 +126,7 @@ final class DimensionSpecificCompressor implements Compressor{
 
 		return LevelChunkPacket::create(
 			$packet->getChunkPosition(),
+			$this->dimension_id,
 			count($resulting_chunks),
 			$packet->isClientSubChunkRequestEnabled(),
 			$packet->getUsedBlobHashes(),
