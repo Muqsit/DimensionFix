@@ -7,6 +7,7 @@ namespace muqsit\dimensionfix;
 use InvalidArgumentException;
 use pocketmine\event\EventPriority;
 use pocketmine\event\player\PlayerLoginEvent;
+use pocketmine\event\server\LowMemoryEvent;
 use pocketmine\event\world\WorldLoadEvent;
 use pocketmine\network\mcpe\cache\ChunkCache;
 use pocketmine\network\mcpe\compression\Compressor;
@@ -33,6 +34,11 @@ final class Loader extends PluginBase{
 		}, EventPriority::LOWEST, $this);
 		$this->getServer()->getPluginManager()->registerEvent(WorldLoadEvent::class, function(WorldLoadEvent $event) : void{
 			$this->registerHackToWorldIfApplicable($event->getWorld());
+		}, EventPriority::LOWEST, $this);
+		$this->getServer()->getPluginManager()->registerEvent(LowMemoryEvent::class, function(LowMemoryEvent $event) : void{
+			foreach($this->getServer()->getWorldManager()->getWorlds() as $world){
+				$this->registerHackToWorldIfApplicable($world);
+			}
 		}, EventPriority::LOWEST, $this);
 
 		// register already-registered values
