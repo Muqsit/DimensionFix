@@ -14,7 +14,8 @@ use pocketmine\network\mcpe\compression\ZlibCompressor;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\plugin\PluginBase;
 use pocketmine\world\World;
-use ReflectionProperty;
+use ReflectionClass;
+use function spl_object_id;
 
 final class Loader extends PluginBase{
 
@@ -72,15 +73,15 @@ final class Loader extends PluginBase{
 	 * @param DimensionIds::* $dimension_id
 	 */
 	private function registerHackToWorld(World $world, int $dimension_id) : void{
-		/** @see ChunkCache::$compressor */
-		static $_chunk_cache_compressor = null;
-		$_chunk_cache_compressor ??= new ReflectionProperty(ChunkCache::class, "compressor");
+		/** @see ChunkCache::$instances */
+		static $_chunk_cache = new ReflectionClass(ChunkCache::class);
 
 		foreach($this->known_compressors as $compressor){
 			$chunk_cache = ChunkCache::getInstance($world, $compressor);
-			$compressor = $_chunk_cache_compressor->getValue($chunk_cache);
-			if(!($compressor instanceof DimensionSpecificCompressor)){
-				$_chunk_cache_compressor->setValue($chunk_cache, DimensionSpecificCompressor::fromDimensionId($compressor, $dimension_id));
+			if(!($chunk_cache instanceof DimensionChunkCache)){
+				$instances = $_chunk_cache->getStaticPropertyValue("instances");
+				$instances[spl_object_id($world)][spl_object_id($compressor)] = DimensionChunkCache::from($chunk_cache, $dimension_id);
+				$_chunk_cache->setStaticPropertyValue("instances", $instances);
 			}
 		}
 	}
