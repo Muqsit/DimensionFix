@@ -15,12 +15,12 @@ use ReflectionProperty;
 final class DimensionChunkCache extends ChunkCache{
 
 	public static function from(ChunkCache $parent, int $dimension_id) : self{
-		$_world = new ReflectionProperty(ChunkCache::class, "world");
-		$_caches = new ReflectionProperty(ChunkCache::class, "caches");
-		$_hits = new ReflectionProperty(ChunkCache::class, "hits");
-		$_misses = new ReflectionProperty(ChunkCache::class, "misses");
-		$_compressor = new ReflectionProperty(ChunkCache::class, "compressor");
-		$_this = new ReflectionClass(self::class);
+		static $_world = new ReflectionProperty(ChunkCache::class, "world");
+		static $_caches = new ReflectionProperty(ChunkCache::class, "caches");
+		static $_hits = new ReflectionProperty(ChunkCache::class, "hits");
+		static $_misses = new ReflectionProperty(ChunkCache::class, "misses");
+		static $_compressor = new ReflectionProperty(ChunkCache::class, "compressor");
+		static $_this = new ReflectionClass(self::class);
 		$instance = $_this->newInstanceWithoutConstructor();
 		$instance->dimension_id = $dimension_id;
 		$_world->setValue($instance, $_world->getValue($parent));
