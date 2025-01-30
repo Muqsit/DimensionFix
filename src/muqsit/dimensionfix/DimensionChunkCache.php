@@ -34,7 +34,7 @@ final class DimensionChunkCache extends ChunkCache{
 	/** @var DimensionIds::* */
 	public int $dimension_id;
 
-	public function request(int $chunkX, int $chunkZ) : CompressBatchPromise{
+	public function request(int $chunkX, int $chunkZ) : CompressBatchPromise|string{
 		static $_world = new ReflectionProperty(ChunkCache::class, "world");
 		static $_caches = new ReflectionProperty(ChunkCache::class, "caches");
 		static $_hits = new ReflectionProperty(ChunkCache::class, "hits");
@@ -46,18 +46,17 @@ final class DimensionChunkCache extends ChunkCache{
 		$hits = $_hits->getValue($this);
 		$misses = $_misses->getValue($this);
 		$compressor = $_compressor->getValue($this);
+		$chunkHash = World::chunkHash($chunkX, $chunkZ);
+		if(isset($caches[$chunkHash])){
+			++$hits;
+			$_hits->setValue($this, $hits);
+			return $caches[$chunkHash];
+		}
 
 		$world->registerChunkListener($this, $chunkX, $chunkZ);
 		$chunk = $world->getChunk($chunkX, $chunkZ);
 		if($chunk === null){
 			throw new \InvalidArgumentException("Cannot request an unloaded chunk");
-		}
-		$chunkHash = World::chunkHash($chunkX, $chunkZ);
-
-		if(isset($caches[$chunkHash])){
-			++$hits;
-			$_hits->setValue($this, $hits);
-			return $caches[$chunkHash];
 		}
 
 		++$misses;
@@ -65,21 +64,30 @@ final class DimensionChunkCache extends ChunkCache{
 
 		$world->timings->syncChunkSendPrepare->startTiming();
 		try{
-			$caches[$chunkHash] = new CompressBatchPromise();
-			$_caches->setValue($this, $caches);
-
+			$promise = new CompressBatchPromise();
 			$world->getServer()->getAsyncPool()->submitTask(
 				new ChunkRequestTask(
 					$chunkX,
 					$chunkZ,
 					$this->dimension_id,
 					$chunk,
-					$caches[$chunkHash],
+					$promise,
 					$compressor
 				)
 			);
 
-			return $caches[$chunkHash];
+			$caches[$chunkHash] = $promise;
+			$_caches->setValue($this, $caches);
+			$promise->onResolve(function(CompressBatchPromise $promise) use ($chunkHash, $_caches) : void{
+				//the promise may have been discarded or replaced if the chunk was unloaded or modified in the meantime
+				$caches = $_caches->getValue($this);
+				if(($caches[$chunkHash] ?? null) === $promise){
+					$caches[$chunkHash] = $promise->getResult();
+					$_caches->setValue($this, $caches);
+				}
+			});
+
+			return $promise;
 		}finally{
 			$world->timings->syncChunkSendPrepare->stopTiming();
 		}
