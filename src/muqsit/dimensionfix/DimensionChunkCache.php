@@ -35,7 +35,7 @@ final class DimensionChunkCache extends ChunkCache {
 
     /** @var DimensionIds::* */
     public int $dimension_id;
-
+s
     public function request(int $chunkX, int $chunkZ) : CompressBatchPromise {
         static $_world = new ReflectionProperty(ChunkCache::class, "world");
         static $_caches = new ReflectionProperty(ChunkCache::class, "caches");
