@@ -15,7 +15,7 @@ use pocketmine\network\mcpe\compression\ZlibCompressor;
 use pocketmine\network\mcpe\protocol\types\DimensionIds;
 use pocketmine\plugin\PluginBase;
 use pocketmine\world\World;
-use ReflectionClass;
+use ReflectionProperty;
 use function spl_object_id;
 
 final class Loader extends PluginBase{
@@ -79,16 +79,10 @@ final class Loader extends PluginBase{
 	 * @param DimensionIds::* $dimension_id
 	 */
 	private function registerHackToWorld(World $world, int $dimension_id) : void{
-		/** @see ChunkCache::$instances */
-		static $_chunk_cache = new ReflectionClass(ChunkCache::class);
-
+		static $_dimension_id = new ReflectionProperty(ChunkCache::class, "dimensionId");
 		foreach($this->known_compressors as $compressor){
 			$chunk_cache = ChunkCache::getInstance($world, $compressor);
-			if(!($chunk_cache instanceof DimensionChunkCache)){
-				$instances = $_chunk_cache->getStaticPropertyValue("instances");
-				$instances[spl_object_id($world)][spl_object_id($compressor)] = DimensionChunkCache::from($chunk_cache, $dimension_id);
-				$_chunk_cache->setStaticPropertyValue("instances", $instances);
-			}
+			$_dimension_id->setValue($chunk_cache, $dimension_id);
 		}
 	}
 
